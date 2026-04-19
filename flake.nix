@@ -22,6 +22,7 @@
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs { inherit system; };
       frostPkg = frost.packages.${system}.default;
+      frostForgePkg = frost.packages.${system}.frost-complete-forge;
       skimTabPkg = skim-tab.packages.${system}.default;
 
       # ─── Bundled tools ────────────────────────────────────────────
@@ -43,6 +44,7 @@
         # ── Core fuzzy + shell integrations ─────────────────────────
         skim         # fuzzy picker (binary: `sk`) — drives C-r/C-t/M-c/C-f
         skimTabPkg   # `skim-*` + skim-tab — rich fuzzy picker binaries
+        frostForgePkg  # `frost-complete-forge` — fish→(def*) Lisp emitter
         zoxide       # smarter cd — drives 60-tools-zoxide
         direnvFixed  # .envrc auto-loader — drives 62-tools-direnv
         starship     # cross-shell prompt — optional via 63-tools-starship
