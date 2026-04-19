@@ -16,14 +16,43 @@
       url = "github:pleme-io/skim-tab";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # blx: blackmatter shell extensions. Ships a multicall `blx` binary
+    # with symlink targets `blx-ls` (POSIX-flag-translating eza wrapper),
+    # `blx-preview`, `blx-urlencode`, etc. frostmourne aliases `ls` to
+    # `blx-ls` so `ls -ltra` works the way muscle memory expects on top
+    # of eza (which otherwise rejects `-ltra` because `-t` means --time).
+    blx = {
+      url = "github:pleme-io/blx";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, frost, skim-tab, ... }:
+  outputs = { self, nixpkgs, flake-utils, frost, skim-tab, blx, ... }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs { inherit system; };
       frostPkg = frost.packages.${system}.default;
       frostForgePkg = frost.packages.${system}.frost-complete-forge;
       skimTabPkg = skim-tab.packages.${system}.default;
+      blxBase = blx.packages.${system}.default;
+
+      # blx is a multicall binary: argv[0] like `blx-ls` routes to the
+      # ls command. The stock nixpkgs package only installs `blx`, so
+      # we build a symlink farm that adds `blx-ls`, `blx-preview*`,
+      # `blx-json`, `blx-urlencode`, `blx-urldecode` for the rc to
+      # reference.
+      blxMulticall = pkgs.runCommand "blx-multicall" {} ''
+        mkdir -p $out/bin
+        cp -r ${blxBase}/* $out/ 2>/dev/null || true
+        # Re-link any existing bins + add the multicall aliases.
+        for entry in ${blxBase}/bin/*; do
+          name=$(basename "$entry")
+          ln -sf "$entry" "$out/bin/$name"
+        done
+        for sub in ls preview preview-dir preview-proc preview-git \
+                   backup json urlencode urldecode weather; do
+          ln -sf ${blxBase}/bin/blx "$out/bin/blx-$sub"
+        done
+      '';
 
       # ─── Bundled tools ────────────────────────────────────────────
       # Mirrors `blackmatter-shell` — the Rust tool stack that blzsh
@@ -44,6 +73,7 @@
         # ── Core fuzzy + shell integrations ─────────────────────────
         skim         # fuzzy picker (binary: `sk`) — drives C-r/C-t/M-c/C-f
         skimTabPkg   # `skim-*` + skim-tab — rich fuzzy picker binaries
+        blxMulticall   # `blx` + multicall symlinks (blx-ls, blx-preview, …)
         frostForgePkg  # `frost-complete-forge` — fish→(def*) Lisp emitter
         zoxide       # smarter cd — drives 60-tools-zoxide
         direnvFixed  # .envrc auto-loader — drives 62-tools-direnv
