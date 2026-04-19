@@ -40,18 +40,31 @@
       direnvFixed = pkgs.direnv.overrideAttrs (_: { doCheck = false; });
 
       bundledTools = with pkgs; [
+        # ── Core fuzzy + shell integrations ─────────────────────────
         skim         # fuzzy picker (binary: `sk`) — drives C-r/C-t/M-c/C-f
-        skimTabPkg   # `sk-tab` — rich fuzzy completion backend
+        skimTabPkg   # `skim-*` + skim-tab — rich fuzzy picker binaries
         zoxide       # smarter cd — drives 60-tools-zoxide
         direnvFixed  # .envrc auto-loader — drives 62-tools-direnv
         starship     # cross-shell prompt — optional via 63-tools-starship
         atuin        # synced shell history w/ search — drives 64-tools-atuin
-        fd           # faster find, drives file/cd pickers + FZF/SKIM_DEFAULT_COMMAND
-        ripgrep      # fast grep, drives the content picker
-        bat          # syntax-highlighting cat
+
+        # ── Rust-native classic-unix replacements ───────────────────
+        fd           # `find` replacement; drives file/cd pickers
+        ripgrep      # `grep` replacement; drives content picker
+        bat          # syntax-highlighting `cat`
         delta        # git diff pager
-        eza          # modern ls replacement
+        eza          # modern `ls` replacement
+        sd           # `sed` replacement — simpler regex swap
+        procs        # `ps` replacement with colorized tree
+        tokei        # `cloc` replacement — fast codebase stats
+        bandwhich    # `iftop`-style per-process bandwidth monitor
+        hyperfine    # statistical benchmarking (blzsh parity)
+        tealdeer     # `tldr` client — simplified man pages
+        grex         # regex generator from examples
+
+        # ── Misc quality-of-life ────────────────────────────────────
         jq           # json query, referenced in aliases
+        shfmt        # shell formatter (blzsh parity)
         git          # ensures git is reachable even on bare nix hosts
       ];
 

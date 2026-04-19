@@ -51,11 +51,21 @@
 (defalias :name "fkill"  :value "skim-fkill")       ; kill picker
 (defalias :name "kpod"   :value "skim-kpod")        ; k8s pod selector
 
-;; ── Keybindings: the four skim-rs widgets ───────────────────────────
-;; Bound to `__frost_picker_*__` sentinels — frost's REPL intercepts
-;; them before parse/exec, runs sk in the freed terminal, and splices
-;; the selection back via reedline's `run_edit_commands`.
-(defbind :key "C-r" :action "__frost_picker_history__")
-(defbind :key "C-t" :action "__frost_picker_files__")
-(defbind :key "M-c" :action "__frost_picker_cd__")
-(defbind :key "C-f" :action "__frost_picker_content__")
+;; ── Pickers: the four skim-rs widgets, declaratively ───────────────
+;; `defpicker` is the grown-up form for binding keys to terminal-
+;; takeover pickers. It encodes the full convention in one place:
+;;   :name   — widget short name; becomes sentinel __frost_picker_NAME__
+;;   :key    — chord (parsed by frost-zle::parse_chord)
+;;   :binary — what to spawn; must be on $PATH when the key fires
+;;   :action — how to consume the selection:
+;;       "replace"   — selection replaces buffer; user reviews + Enter
+;;       "append"    — selection appends to LBUFFER (with separator)
+;;       "cd-submit" — buffer becomes `cd <sel>` and auto-submits
+;;       "submit"    — selection is the command verbatim; auto-submits
+;;
+;; The REPL sees the sentinel directly (no defbind indirection) and
+;; dispatches to :binary with the live LBUFFER forwarded as `--query`.
+(defpicker :name "history" :key "C-r" :binary "skim-history" :action "replace")
+(defpicker :name "files"   :key "C-t" :binary "skim-files"   :action "append")
+(defpicker :name "cd"      :key "M-c" :binary "skim-cd"      :action "cd-submit")
+(defpicker :name "content" :key "C-f" :binary "skim-content" :action "submit")

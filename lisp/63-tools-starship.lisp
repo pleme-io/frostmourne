@@ -1,13 +1,15 @@
 ;; frostmourne :: 63-tools-starship
 ;; --------------------------------
-;; Optional: delegate the prompt to `starship` (cross-shell prompt
-;; generator). Loading this file OVERRIDES the 10-prompt.lisp
-;; template at apply time — later forms win for the same domain.
+;; starship prompt integration. `defprompt :command` synthesizes a
+;; `precmd` hook that captures `starship prompt`'s stdout into PS1
+;; every prompt — the cleanest declarative hook-up we have.
 ;;
-;; Disabled by default (PS1 set via 10-prompt). Un-comment the
-;; `(defprompt …)` below to enable. Requires `starship` in PATH.
-
+;; Disabled by default: the frost-native prompt in 10-prompt.lisp +
+;; 20-hooks.lisp already gives us a two-line git/duration/status-aware
+;; prompt with Nord coloring, and avoids a subprocess per prompt. If
+;; you prefer starship's renderer (modules, custom segments, toml
+;; config in ~/.config/starship.toml), delete 10-prompt.lisp from
+;; your layer and uncomment the form below. Last prompt form wins.
+;;
 ;; (defprompt
-;;   :ps1 "$(starship prompt)"
-;;   :ps2 "%F{244}  %f"
-;;   :prompt-subst #t)
+;;   :command "starship prompt --status=\"$?\" --cmd-duration=\"${FROST_CMD_DURATION_MS:-0}\"")
