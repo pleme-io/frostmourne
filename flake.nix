@@ -87,16 +87,37 @@
         azure-cli
       ];
 
+      # ─── Pre-generated completion specs from skim-tab YAMLs ──────
+      # skim-tab curates 12 completion trees (kubectl/helm/flux/docker/
+      # git/nix/cargo/npm/terraform/aws/gcloud/az). At build time we
+      # run `frost-complete-forge yaml-dir` over that spec directory
+      # and inline the emitted (def*) forms into our rc — so a fresh
+      # frostmourne install offers rich subcommand completion out of
+      # the box for 12 common tools with zero per-user configuration.
+      generatedCompletions = pkgs.runCommand "frostmourne-generated-completions.lisp" {
+        nativeBuildInputs = [ frostForgePkg ];
+      } ''
+        echo ";; frostmourne :: skim-tab-generated completions" > $out
+        echo ";; Regenerate by bumping the skim-tab input — do not hand-edit." >> $out
+        echo "" >> $out
+        frost-complete-forge yaml-dir ${skim-tab}/specs >> $out
+      '';
+
       # ─── Concatenated rc ──────────────────────────────────────────
       # Every `lisp/*.lisp` in lexical order → one rc file that
       # frost-lisp's loader consumes. Numeric prefix NN-…lisp drives
-      # load order (00-core first, tools last).
+      # load order (00-core first, tools last). The skim-tab-generated
+      # completion forms land at the END so user-authored specs in
+      # lisp/*.lisp can override them (later forms win in frost-lisp's
+      # bind/completion registry for the same (path, name)).
       rc = pkgs.runCommand "frostmourne-rc.lisp" {} ''
         mkdir -p $out/share/frostmourne
         for f in ${self}/lisp/*.lisp; do
           cat "$f" >> $out/share/frostmourne/rc.lisp
           echo "" >> $out/share/frostmourne/rc.lisp
         done
+        echo "" >> $out/share/frostmourne/rc.lisp
+        cat ${generatedCompletions} >> $out/share/frostmourne/rc.lisp
       '';
 
       # ─── Wrapper ──────────────────────────────────────────────────
