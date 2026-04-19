@@ -8,34 +8,46 @@
       url = "github:pleme-io/frost";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # skim-tab: pleme-io's Rust fuzzy tab-completion bridge. Used by
+    # blackmatter-shell's `skim-tab-complete` plugin to turn zsh's compadd
+    # into a skim picker; we absorb the same binary so frost-complete can
+    # call it out for rich candidate descriptions. Exposed as `sk-tab`.
+    skim-tab = {
+      url = "github:pleme-io/skim-tab";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, frost, ... }:
+  outputs = { self, nixpkgs, flake-utils, frost, skim-tab, ... }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs { inherit system; };
       frostPkg = frost.packages.${system}.default;
+      skimTabPkg = skim-tab.packages.${system}.default;
 
       # ─── Bundled tools ────────────────────────────────────────────
-      # Modeled on blackmatter-shell — frostmourne ships a curated set
-      # of tools so the `defhook` / `defbind` integrations in
-      # lisp/60-tools-*.lisp actually have something to drive. Without
-      # this the integrations would silently no-op on a bare nix host.
+      # Mirrors `blackmatter-shell` — the Rust tool stack that blzsh
+      # relies on (skim + skim-tab + zoxide + atuin + starship + direnv
+      # + fd + rg + bat + delta + eza + jq) is bundled here too so the
+      # `defbind` + `defhook` forms in `lisp/60-tools-*.lisp` have
+      # working binaries to drive on any host.
+      #
       # direnv's nixpkgs test suite flakes on Darwin (CGO integration
-      # test spawns subprocesses that touch dtrace). Disable its tests
-      # — we trust upstream's direnv-unit-tests and we only need the
+      # test spawns subprocesses that touch dtrace). Disable its tests —
+      # we trust upstream's direnv-unit-tests and we only need the
       # binary. blackmatter-direnv does the same thing for the whole
       # fleet; we inline the fix here so frostmourne stays a single
       # self-contained flake.
       direnvFixed = pkgs.direnv.overrideAttrs (_: { doCheck = false; });
 
       bundledTools = with pkgs; [
-        fzf          # fuzzy finder — drives 61-tools-fzf and Ctrl-R
+        skim         # fuzzy picker (binary: `sk`) — drives C-r/C-t/M-c/C-f
+        skimTabPkg   # `sk-tab` — rich fuzzy completion backend
         zoxide       # smarter cd — drives 60-tools-zoxide
         direnvFixed  # .envrc auto-loader — drives 62-tools-direnv
         starship     # cross-shell prompt — optional via 63-tools-starship
         atuin        # synced shell history w/ search — drives 64-tools-atuin
-        fd           # faster find
-        ripgrep      # fast grep, used in fzf bindings
+        fd           # faster find, drives file/cd pickers + FZF/SKIM_DEFAULT_COMMAND
+        ripgrep      # fast grep, drives the content picker
         bat          # syntax-highlighting cat
         delta        # git diff pager
         eza          # modern ls replacement
