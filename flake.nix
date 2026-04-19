@@ -103,6 +103,37 @@
         frost-complete-forge yaml-dir ${skim-tab}/specs >> $out
       '';
 
+      # ─── Pre-generated completion specs from bundled fish files ───
+      # For every bundled package, fish-completion files (if any) ship
+      # under `$out/share/fish/{completions,vendor_completions.d}`.
+      # Walk every bundled tool's store path and forge each `*.fish`
+      # into (def*) forms. This complements the YAML-driven pass
+      # above with flag-level completions (subcommand hierarchy comes
+      # from YAMLs; per-flag details from the fish files).
+      #
+      # fish files are noisy — many reference dynamic `(command …)`
+      # producers we can't evaluate. The forge drops those and keeps
+      # the static flag + description entries; `|| true` guards the
+      # per-file call so a single bad fish file doesn't abort the
+      # whole pipeline.
+      fishCompletions = pkgs.runCommand "frostmourne-fish-completions.lisp" {
+        nativeBuildInputs = [ frostForgePkg ];
+      } ''
+        echo ";; frostmourne :: fish-derived flag completions" > $out
+        echo ";; Auto-generated at build time from each bundled package's fish files." >> $out
+        echo ";; Regenerate by bumping any of the source packages." >> $out
+        echo "" >> $out
+        for pkg_path in ${pkgs.lib.concatStringsSep " " (map (p: "${p}") bundledTools)}; do
+          for fish_dir in "$pkg_path/share/fish/completions" "$pkg_path/share/fish/vendor_completions.d"; do
+            [ -d "$fish_dir" ] || continue
+            for f in "$fish_dir"/*.fish; do
+              [ -f "$f" ] || continue
+              frost-complete-forge fish "$f" >> $out 2>/dev/null || true
+            done
+          done
+        done
+      '';
+
       # ─── Concatenated rc ──────────────────────────────────────────
       # Every `lisp/*.lisp` in lexical order → one rc file that
       # frost-lisp's loader consumes. Numeric prefix NN-…lisp drives
@@ -118,6 +149,8 @@
         done
         echo "" >> $out/share/frostmourne/rc.lisp
         cat ${generatedCompletions} >> $out/share/frostmourne/rc.lisp
+        echo "" >> $out/share/frostmourne/rc.lisp
+        cat ${fishCompletions} >> $out/share/frostmourne/rc.lisp
       '';
 
       # ─── Wrapper ──────────────────────────────────────────────────
