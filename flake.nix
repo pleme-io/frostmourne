@@ -66,6 +66,23 @@
         jq           # json query, referenced in aliases
         shfmt        # shell formatter (blzsh parity)
         git          # ensures git is reachable even on bare nix hosts
+        tig          # terminal git UI — drives 71-tools-git `t` alias
+
+        # ── Kubernetes / GitOps tier (70-tools-kubernetes) ──────────
+        kubectl
+        kubecolor    # colorized kubectl wrapper, bound to `k`/`kc`
+        kubectx      # drives `kcx` + `kns` aliases (provides kubens too)
+        kubernetes-helm
+        fluxcd       # GitOps controller CLI (binary: flux)
+        k9s          # TUI
+        k3d          # local clusters
+        kind         # local clusters (alt)
+        stern        # multi-pod log tailing, bound to `kstern`
+
+        # ── Cloud CLIs (72-tools-cloud) ─────────────────────────────
+        awscli2
+        google-cloud-sdk
+        azure-cli
       ];
 
       # ─── Concatenated rc ──────────────────────────────────────────
