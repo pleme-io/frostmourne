@@ -20,5 +20,5 @@
 %F{244}╭─%f %F{green}%n%f@%F{blue}%m%f %F{244}in%f %F{cyan}%~%f%F{244}${FROST_GIT_BRANCH}%f%F{yellow}${FROST_CMD_DURATION}%f
 %F{244}╰─%f ${FROST_LAST_STATUS_GLYPH}%F{244}:%f "
   :ps2 "%F{244}  %f"
-  :rps1 "%F{244}$(date +%H:%M:%S)%f"
+  :rps1 "%F{244}%D{%H:%M:%S}%f"
   :prompt-subst #t)
