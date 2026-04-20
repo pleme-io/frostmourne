@@ -30,3 +30,9 @@
 ;; submitting. Bound to C-u by convention (reedline's C-u already
 ;; kills-to-start; this explicit widget is a user-override surface).
 (defbind :key "C-u"   :action "__frost_widget_kill-buffer__")
+
+;; Insert last argument of previous command — the classic bash/zsh
+;; Alt-. shortcut. Reads history.previous(), pulls the trailing
+;; whitespace-delimited token (preserving quoted groups), appends
+;; to the current buffer with a space separator.
+(defbind :key "M-."   :action "__frost_widget_insert-last-arg__")
