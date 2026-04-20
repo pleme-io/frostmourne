@@ -1316,11 +1316,11 @@
         "substrate": "substrate_2"
       },
       "locked": {
-        "lastModified": 1776650409,
-        "narHash": "sha256-tT/Doi26MspM5obZ4k9u/NbH1LmGEM/LZuiASQwu9F8=",
+        "lastModified": 1776653388,
+        "narHash": "sha256-jYfcmyPvAyPZoGVwIxRGGO8AhI7jjQICtlMZtJOMMBw=",
         "owner": "pleme-io",
         "repo": "frost",
-        "rev": "c787e71c8174d63494396f4dc29183722f2dc4f3",
+        "rev": "bc292a2e289665c5736fc287f1d0a78bfaef4229",
         "type": "github"
       },
       "original": {
