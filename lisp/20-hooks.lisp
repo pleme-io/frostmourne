@@ -20,6 +20,7 @@ rc=$?
 if [ -n \"$FROST_CMD_START\" ]; then
   now=$(date +%s)
   dur=$((now - FROST_CMD_START))
+  FROST_CMD_DURATION_MS=$((dur * 1000))
   if [ \"$dur\" -ge 1 ]; then
     FROST_CMD_DURATION=\" ${dur}s\"
   else
@@ -28,8 +29,10 @@ if [ -n \"$FROST_CMD_START\" ]; then
   unset FROST_CMD_START
 else
   FROST_CMD_DURATION=\"\"
+  FROST_CMD_DURATION_MS=0
 fi
 export FROST_CMD_DURATION
+export FROST_CMD_DURATION_MS
 branch=$(git branch --show-current 2>/dev/null)
 if [ -n \"$branch\" ]; then
   dirty=\"\"
