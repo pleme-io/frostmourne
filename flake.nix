@@ -225,6 +225,8 @@
       };
     }) // {
       homeManagerModules.default = import ./module;
+      nixosModules.default = import ./module/nixos.nix;
+      darwinModules.default = import ./module/darwin.nix;
       overlays.default = final: prev: {
         frostmourne = self.packages.${prev.stdenv.hostPlatform.system}.default;
       };
