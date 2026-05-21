@@ -230,6 +230,13 @@
           export FROSTRC="''${FROSTRC:-${rc}/share/frostmourne/rc.lisp}"
           export FROSTMOURNE_TOOLS_PATH="''${FROSTMOURNE_TOOLS_PATH:-${pkgs.lib.makeBinPath bundledTools}}"
           export PATH="$FROSTMOURNE_TOOLS_PATH:$PATH"
+          # Override SHELL so tools inside frost (sub-shells, editor
+          # `:!sh`, terminal multiplexers, every `getenv("SHELL")`
+          # caller) see frostmourne — not the operator's login shell.
+          # Without this, $SHELL stays as the macOS chsh shell
+          # (typically blzsh on a pleme-io host), and sub-shells
+          # respawn THAT instead of frostmourne. Fleet drift.
+          export SHELL="$0"
           exec ${frostPkg}/bin/frost "$@"
         '';
       };

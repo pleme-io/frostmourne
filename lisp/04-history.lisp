@@ -18,8 +18,17 @@
 ;; frost-lisp runtime should treat `:size 0` as unbounded; today
 ;; the upper bound is what frost-config parses as a u64.
 
+;; Shared history file with blzsh (XDG-compliant). When operators
+;; switch between zsh and frost, they keep one continuous timeline —
+;; and Ctrl-R via skim-history (which reads $HISTFILE) sees every
+;; command they ever ran on this host, not just the few since frost
+;; took over as default shell.
+;;
+;; Both shells write extended-zsh format (`: <ts>:0;<cmd>`) so the
+;; file stays parseable by either side. blackmatter-shell's
+;; settings.zsh writes here too — single source of truth.
 (defhistory
-  :file         "$HOME/.frost_history"
+  :file         "$XDG_STATE_HOME/zsh/history"
   :size         100000000
   :save-size    100000000
   :ignore       ("ls" "ll" "la" "pwd" "exit" "clear" "history")
