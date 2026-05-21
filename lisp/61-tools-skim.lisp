@@ -55,7 +55,12 @@
 ;; `defpicker` is the grown-up form for binding keys to terminal-
 ;; takeover pickers. It encodes the full convention in one place:
 ;;   :name   — widget short name; becomes sentinel __frost_picker_NAME__
-;;   :key    — chord (parsed by frost-zle::parse_chord)
+;;   :intent — atlas-keyword chord (preferred — sourced from
+;;             ishou_tokens::FleetKeybinds; atlas drift becomes a
+;;             build error rather than a silent unbound key)
+;;   :key    — hard-coded chord (used when the atlas does not cover
+;;             this picker; rare — every picker below has a fleet-
+;;             canonical chord)
 ;;   :binary — what to spawn; must be on $PATH when the key fires
 ;;   :action — how to consume the selection:
 ;;       "replace"   — selection replaces buffer; user reviews + Enter
@@ -65,7 +70,7 @@
 ;;
 ;; The REPL sees the sentinel directly (no defbind indirection) and
 ;; dispatches to :binary with the live LBUFFER forwarded as `--query`.
-(defpicker :name "history" :key "C-r" :binary "skim-history" :action "replace")
-(defpicker :name "files"   :key "C-t" :binary "skim-files"   :action "append")
-(defpicker :name "cd"      :key "M-c" :binary "skim-cd"      :action "cd-submit")
-(defpicker :name "content" :key "C-f" :binary "skim-content" :action "submit")
+(defpicker :name "history" :intent ":history-picker" :binary "skim-history" :action "replace")
+(defpicker :name "files"   :intent ":files-picker"   :binary "skim-files"   :action "append")
+(defpicker :name "cd"      :intent ":dir-picker"     :binary "skim-cd"      :action "cd-submit")
+(defpicker :name "content" :intent ":content-picker" :binary "skim-content" :action "submit")
