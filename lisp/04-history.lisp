@@ -28,7 +28,12 @@
 ;; file stays parseable by either side. blackmatter-shell's
 ;; settings.zsh writes here too — single source of truth.
 (defhistory
-  :file         "$XDG_STATE_HOME/zsh/history"
+  ;; XDG-compliant path; literal HOME because frost's defhistory
+  ;; expansion doesn't support ${VAR:-default} fallback yet, and
+  ;; XDG_STATE_HOME is unset on macOS (Linux clients set it). Hardcode
+  ;; the canonical XDG location relative to $HOME — same path
+  ;; blackmatter-shell/groups/common/settings.zsh writes to.
+  :file         "$HOME/.local/state/zsh/history"
   :size         100000000
   :save-size    100000000
   :ignore       ("ls" "ll" "la" "pwd" "exit" "clear" "history")
