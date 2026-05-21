@@ -41,3 +41,17 @@
 ;; buffer or strips it if already present. Cleanest rescue when a
 ;; command fails with EACCES and you don't want to retype.
 (defbind :key "M-s"   :action "__frost_widget_toggle-sudo__")
+
+;; ── Skim-backed history picker (★ Ctrl-R, the muscle-memory binding) ──
+;;
+;; Bound to the universal "show me my command history" keystroke. Drives
+;; `__frost_picker_history__` which spawns skim (the Rust-native fuzzy
+;; picker) against the frost history store. blackmatter-shell uses the
+;; same shape — atuin's own Ctrl-R is disabled there with --disable-ctrl-r
+;; so skim wins; frostmourne inherits that convention by routing C-r
+;; directly at the skim widget.
+;;
+;; This is the binding the mado → frostmourne stack relies on: pressing
+;; Ctrl-R inside a mado terminal session brings up the absolute-best
+;; fleet history picker without operator configuration.
+(defbind :key "C-r"   :action "__frost_picker_history__")
