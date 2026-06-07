@@ -42,3 +42,31 @@
   :command "frost"
   :args ("-c" "--command" "-i" "--interactive" "-V" "--version" "-h" "--help")
   :description "the Rust zsh-replacement")
+
+;; ── pleme-io fleet binaries (the operator's daily verbs) ─────────
+;; Clap-based, so trivially completable; surfaced here as the curated
+;; vocabulary until forge-gen completions ship per-tool.
+(defcompletion
+  :command "tend"
+  :args ("status" "sync" "reconcile" "report" "pull" "fetch" "discover" "daemon")
+  :description "fleet workspace + repo orchestrator")
+
+(defcompletion
+  :command "feira"
+  :args ("build" "publish" "validate" "app" "shellpkg")
+  :description "caixa SDLC CLI")
+
+(defcompletion
+  :command "cordel"
+  :args ("builder-wake" "cluster")
+  :description "JIT remote-builder + cluster control")
+
+(defcompletion
+  :command "seki"
+  :args ("init" "prompt")
+  :description "typed prompt renderer")
+
+(defcompletion
+  :command "repo-forge"
+  :args ("absorb" "instantiate" "migrate")
+  :description "canonical repo generation")

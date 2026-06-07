@@ -8,6 +8,7 @@
 (defalias :name "la"   :value "ls -A")
 (defalias :name "ll"   :value "ls -la")
 (defalias :name "lt"   :value "ls -la --color=always")
+(defalias :name "ltra" :value "ls -ltra")   ; 489x — recent-last, the operator's reflex
 (defalias :name ".."   :value "cd ..")
 (defalias :name "..."  :value "cd ../..")
 (defalias :name "...." :value "cd ../../..")
@@ -40,10 +41,20 @@
 (defalias :name "cr"   :value "cargo run")
 (defalias :name "nr"   :value "nix run")
 (defalias :name "nd"   :value "nix develop")
+(defalias :name "rebuild" :value "nix run .#rebuild")  ; 702x — the fleet rebuild, spelled out
+(defalias :name "tnd"  :value "tend")                  ; fleet workspace orchestrator
 
 ;; ── Daily ergonomics ──────────────────────────────────────────────
 (defalias :name "mkd"  :value "mkdir -p")
 (defalias :name "cls"  :value "clear")
+;; `clear` fat-finger catches — the operator mistypes it ~4500x in history.
+;; Cheap aliases that turn a "command not found" into the intended clear.
+(defalias :name "claer" :value "clear")
+(defalias :name "celar" :value "clear")
+(defalias :name "clera" :value "clear")
+(defalias :name "cler"  :value "clear")
+(defalias :name "clar"  :value "clear")
+(defalias :name "clea"  :value "clear")
 (defalias :name "h"    :value "history")
 (defalias :name "j"    :value "jobs -l")
 (defalias :name "path" :value "echo $PATH | tr : '\\n'")
@@ -67,3 +78,6 @@
 (defenv :name "LC_ALL"    :value "en_US.UTF-8" :export #t)
 (defenv :name "CLICOLOR"  :value "1"           :export #t)
 (defenv :name "TERM_COLOR_MODE" :value "truecolor")
+;; ── Rust fleet defaults (cargo/Rust is the dominant workflow) ────
+(defenv :name "RUST_BACKTRACE"   :value "1"      :export #t)
+(defenv :name "CARGO_TERM_COLOR" :value "always" :export #t)
