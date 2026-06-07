@@ -50,9 +50,12 @@
 
 ;; ── Shell options ─────────────────────────────────────────────────
 ;; Enable the features a modern shell assumes; turn off the annoying bell.
+;; `vi` selects the vi keymap on day one — blzsh runs `bindkey -v`
+;; unconditionally, so the operator lives in vi mode; without this frost's
+;; REPL falls back to emacs, a base-keymap divergence on switchover.
 (defopts :enable ("extendedglob" "globdots" "promptsubst"
                   "histignoredups" "histignorespace"
-                  "interactivecomments" "autocd")
+                  "interactivecomments" "autocd" "vi")
          :disable ("beep"))
 
 ;; ── Environment ───────────────────────────────────────────────────

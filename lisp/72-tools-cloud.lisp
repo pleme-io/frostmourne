@@ -14,7 +14,9 @@
 (defalias :name "alog"    :value "aws logs")
 
 ;; ── GCP ────────────────────────────────────────────────────────────
-(defalias :name "gc"      :value "gcloud")
+;; `gcld` (not `gc`) for gcloud: `gc` is git-commit in 00-core/71-tools-git,
+;; and last-writer-wins meant this file silently shadowed it to gcloud.
+(defalias :name "gcld"    :value "gcloud")
 (defalias :name "gwho"    :value "gcloud auth list")
 (defalias :name "gproj"   :value "gcloud config set project")
 (defalias :name "ggke"    :value "gcloud container clusters")
