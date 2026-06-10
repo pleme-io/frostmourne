@@ -13,18 +13,15 @@
 ;; composition pile — both bodies still fire, but a user can
 ;; effectively disable with a `:threshold-ms` they'll never hit).
 
-;; ── DISABLED 2026-06-10 (incident: post-Enter CPR freeze) ──────────
-;; The synthesized precmd hook body executes through frost's command
-;; engine before EVERY prompt, and that execution wedges the next
-;; read_line's cursor-position read: bisection proved this single form
-;; is necessary AND sufficient to freeze the shell after the first
-;; accept-line (input eaten, prompt never returns) in any terminal —
-;; mado, plain PTY, regardless of DSR answer latency. Codified as the
-;; #[ignore]d `notify_hook_must_not_break_cpr` persona row in
-;; frost crates/frost/tests/persona_pty.rs; re-enable this form when
-;; that row passes un-ignored (the frost engine-side fix).
-;;
-;; (defnotify
-;;   :threshold-ms 30000
-;;   :title        "frostmourne"
-;;   :message      "command finished")
+;; ── RE-ENABLED 2026-06-10 (engine fix frost 1f66d1c) ───────────────
+;; This form briefly froze the shell after the first accept-line: its
+;; synthesized precmd's `2>/dev/null` builtin redirect made frost cycle
+;; fd 0 through dup2, deleting crossterm's kqueue registration for the
+;; tty — every later cursor-position read timed out. Fixed at the root
+;; (redirect::touched_std_fds — only the touched fds are cycled) and
+;; pinned by the live `notify_hook_must_not_break_cpr` persona row in
+;; frost crates/frost/tests/persona_pty.rs.
+(defnotify
+  :threshold-ms 30000
+  :title        "frostmourne"
+  :message      "command finished")
