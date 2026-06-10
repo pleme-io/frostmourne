@@ -13,7 +13,18 @@
 ;; composition pile — both bodies still fire, but a user can
 ;; effectively disable with a `:threshold-ms` they'll never hit).
 
-(defnotify
-  :threshold-ms 30000
-  :title        "frostmourne"
-  :message      "command finished")
+;; ── DISABLED 2026-06-10 (incident: post-Enter CPR freeze) ──────────
+;; The synthesized precmd hook body executes through frost's command
+;; engine before EVERY prompt, and that execution wedges the next
+;; read_line's cursor-position read: bisection proved this single form
+;; is necessary AND sufficient to freeze the shell after the first
+;; accept-line (input eaten, prompt never returns) in any terminal —
+;; mado, plain PTY, regardless of DSR answer latency. Codified as the
+;; #[ignore]d `notify_hook_must_not_break_cpr` persona row in
+;; frost crates/frost/tests/persona_pty.rs; re-enable this form when
+;; that row passes un-ignored (the frost engine-side fix).
+;;
+;; (defnotify
+;;   :threshold-ms 30000
+;;   :title        "frostmourne"
+;;   :message      "command finished")
