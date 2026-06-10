@@ -34,9 +34,17 @@
       url = "github:pleme-io/seki";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # wadachi: pleme-io's native directory frecency primitive (轍). Replaces
+    # zoxide — frost records every cd at its chdir chokepoint and `cd <partial>`
+    # smart-jumps to the most-worn match. Bundled so the `wadachi` binary is on
+    # PATH for frost's native record/resolve. Drives lisp/60-tools-wadachi.
+    wadachi = {
+      url = "github:pleme-io/wadachi";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, frost, skim-tab, blx, seki, ... }:
+  outputs = { self, nixpkgs, flake-utils, frost, skim-tab, blx, seki, wadachi, ... }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs { inherit system; };
       frostPkg = frost.packages.${system}.default;
@@ -44,6 +52,7 @@
       skimTabPkg = skim-tab.packages.${system}.default;
       blxBase = blx.packages.${system}.default;
       sekiPkg = seki.packages.${system}.default;
+      wadachiPkg = wadachi.packages.${system}.default;
 
       # blx is a multicall binary: argv[0] like `blx-ls` routes to the
       # ls command. The stock nixpkgs package only installs `blx`, so
@@ -86,7 +95,7 @@
         blxMulticall   # `blx` + multicall symlinks (blx-ls, blx-preview, …)
         frostForgePkg  # `frost-complete-forge` — fish→(def*) Lisp emitter
         sekiPkg      # `seki` — typed prompt renderer (default prompt; supersedes starship)
-        zoxide       # smarter cd — drives 60-tools-zoxide
+        wadachiPkg   # directory frecency 轍 — drives 60-tools-wadachi
         direnvFixed  # .envrc auto-loader — drives 62-tools-direnv
         starship     # cross-shell prompt — kept as fallback via 63-tools-starship
         atuin        # synced shell history w/ search — drives 64-tools-atuin
