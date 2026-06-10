@@ -2861,11 +2861,11 @@
         "substrate": "substrate_2"
       },
       "locked": {
-        "lastModified": 1780849900,
-        "narHash": "sha256-lnmEDMYRXNyRECJ99aZEWh1y6n567rC9NEzKk2QZ5uI=",
+        "lastModified": 1781101687,
+        "narHash": "sha256-1gc6EegS6gYAvD2oZTiQdNyf/nxBiGk1/BGNa8UcPes=",
         "owner": "pleme-io",
         "repo": "frost",
-        "rev": "9d479d6a9e79ced7a0852db6f4e3a19a7697d165",
+        "rev": "84b3b7123ab83d6d5381467c6276fb4cbc4f98b1",
         "type": "github"
       },
       "original": {
