@@ -15,12 +15,19 @@
 ;; dispatch_picker_sentinel` — it is never parsed or executed as a
 ;; regular shell command.
 
-;; ── Environment: Nord-themed skim by default ────────────────────────
+;; ── Environment: Borealis-themed skim by default ────────────────────
 ;; SKIM_DEFAULT_OPTIONS is read by `sk` on every invocation. Users can
 ;; override in `~/.frostrc.lisp` with a later `(defenv …)` — last-wins.
+;;
+;; Every colour below is a BORN ishou Borealis token (spec §7 skim/fzf
+;; mapping) — NOT a hand-authored hex:
+;;   fg=snow0 bg=night0 · hl=ice_cyan hl+=cyan_bright (M4 tier jump, no
+;;   teal/cyan sibling slots) · fg+=snow2 bg+=night1 · info=shadow0 ·
+;;   prompt=aurora_green pointer=green_bright · marker=solar_magenta ·
+;;   spinner/header=ice_steel · border=night3 · query=snow2.
 (defenv
   :name "SKIM_DEFAULT_OPTIONS"
-  :value "--height=40% --layout=reverse --ansi --prompt=> --color=fg:#D8DEE9,bg:#2E3440,hl:#88C0D0:bold:underlined,fg+:#ECEFF4:bold,bg+:#3B4252,hl+:#8FBCBB:bold:underlined,info:#4C566A,prompt:#A3BE8C,pointer:#88C0D0,marker:#B48EAD,spinner:#81A1C1,header:#5E81AC,border:#4C566A,query:#ECEFF4:bold"
+  :value "--height=40% --layout=reverse --ansi --prompt=> --color=fg:#B5BCC9,bg:#1F222F,hl:#73C6D9:bold:underlined,fg+:#E4E8EF:bold,bg+:#2B2E3D,hl+:#7ED7EC:bold:underlined,info:#737689,prompt:#67D191,pointer:#74E29F,marker:#C673A3,spinner:#6A90C0,header:#6A90C0,border:#454859,query:#E4E8EF:bold"
   :export #t)
 ;; Seed Ctrl-T's stock skim binding (if the user keeps skim's own
 ;; key-bindings.zsh loaded in parallel) with the same source we use in
