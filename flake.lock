@@ -6449,11 +6449,11 @@
         "substrate": "substrate_3"
       },
       "locked": {
-        "lastModified": 1781398891,
-        "narHash": "sha256-JRfcq2e6g5WEecOpxOvboZNBNmteRveK7f0OOkfDPUE=",
+        "lastModified": 1781399476,
+        "narHash": "sha256-mdco9hk4He3kD/elXHiHiZBEQ/l1xdBSA92XV8+EZB0=",
         "owner": "pleme-io",
         "repo": "seki",
-        "rev": "91ede5929dad08b18f904cd682a12702b15098ee",
+        "rev": "ee2f1600364a0203b7d52e02da0b516dde028375",
         "type": "github"
       },
       "original": {
