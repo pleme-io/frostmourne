@@ -232,23 +232,58 @@
       # the system PATH so the rc's `command -v zoxide` etc. resolve
       # even on a minimal host. Sets FROSTRC to the bundled rc. Execs
       # frost; positional args pass through.
-      frostmourne = pkgs.writeShellApplication {
+      frostmourne = (pkgs.writeShellApplication {
         name = "frostmourne";
         runtimeInputs = bundledTools;
         text = ''
           export FROSTRC="''${FROSTRC:-${rc}/share/frostmourne/rc.lisp}"
           export FROSTMOURNE_TOOLS_PATH="''${FROSTMOURNE_TOOLS_PATH:-${pkgs.lib.makeBinPath bundledTools}}"
           export PATH="$FROSTMOURNE_TOOLS_PATH:$PATH"
-          # Override SHELL so tools inside frost (sub-shells, editor
-          # `:!sh`, terminal multiplexers, every `getenv("SHELL")`
-          # caller) see frostmourne — not the operator's login shell.
-          # Without this, $SHELL stays as the macOS chsh shell
-          # (typically blzsh on a pleme-io host), and sub-shells
-          # respawn THAT instead of frostmourne. Fleet drift.
-          export SHELL="$0"
-          exec ${frostPkg}/bin/frost "$@"
+
+          # ── argv[0] is DATA, not a path ────────────────────────────────
+          # login(1) signals "this is a login shell" by prefixing argv[0]
+          # with a dash — it invokes us as `-frostmourne`. frost reads that
+          # convention (frost/crates/frost/src/boot_posture.rs:101,
+          # `argv0.starts_with('-')`), so it must survive the wrapper.
+          #
+          # Two bugs fixed here, both invisible until you look at argv:
+          #
+          #  1. `exec` without `-a` replaces argv[0] with the callee's own
+          #     path, so `boot_posture.login` was ALWAYS false when
+          #     frostmourne was the login shell. The convention worked for
+          #     bare `frost` and was silently dropped through the wrapper.
+          #
+          #  2. `export SHELL="$0"` set SHELL to whatever argv[0] happened
+          #     to be — which under login(1) is the literal string
+          #     `-frostmourne`: not a path, not executable. Every
+          #     `getenv("SHELL")` consumer (mado, tear, editors' `:!sh`)
+          #     would try to spawn it and fail. SHELL must be an absolute
+          #     path, so it is derived from $out instead of from argv.
+          _frostmourne_argv0="$0"
+          export SHELL="${placeholder "out"}/bin/frostmourne"
+
+          exec -a "$_frostmourne_argv0" ${frostPkg}/bin/frost "$@"
         '';
-      };
+      }).overrideAttrs (old: {
+        # ── shellPath: what makes this usable as a LOGIN shell at all ────
+        # nix-darwin and NixOS accept `users.users.<n>.shell` as either a
+        # string or a PACKAGE. Given a package they read `pkg.shellPath` and
+        # append it to the store path. With no `shellPath` the option renders
+        # the bare store DIRECTORY — `/nix/store/…-frostmourne` — which is
+        # not executable, so the account gets a broken login shell and the
+        # failure appears at login time, not at build time.
+        #
+        # Measured 2026-08-06: org-wide, the ONLY pleme-io package carrying
+        # shellPath was blzsh (blackmatter-shell/package.nix:347). That is
+        # why `kindling-profiles/profiles/macos-developer/default.nix:199`
+        # could say `shell = blzsh;` and why the same line could not simply
+        # be pointed at frostmourne. Fixing it here fixes every consumer at
+        # once, rather than each call site spelling out
+        # "${frostmourne}/bin/frostmourne" and drifting.
+        passthru = (old.passthru or { }) // {
+          shellPath = "/bin/frostmourne";
+        };
+      });
     in {
       packages = {
         default = frostmourne;
