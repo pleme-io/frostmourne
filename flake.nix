@@ -232,39 +232,62 @@
       # the system PATH so the rc's `command -v zoxide` etc. resolve
       # even on a minimal host. Sets FROSTRC to the bundled rc. Execs
       # frost; positional args pass through.
-      frostmourne = (pkgs.writeShellApplication {
-        name = "frostmourne";
-        runtimeInputs = bundledTools;
-        text = ''
-          export FROSTRC="''${FROSTRC:-${rc}/share/frostmourne/rc.lisp}"
-          export FROSTMOURNE_TOOLS_PATH="''${FROSTMOURNE_TOOLS_PATH:-${pkgs.lib.makeBinPath bundledTools}}"
-          export PATH="$FROSTMOURNE_TOOLS_PATH:$PATH"
-
-          # ── argv[0] is DATA, not a path ────────────────────────────────
-          # login(1) signals "this is a login shell" by prefixing argv[0]
-          # with a dash — it invokes us as `-frostmourne`. frost reads that
-          # convention (frost/crates/frost/src/boot_posture.rs:101,
-          # `argv0.starts_with('-')`), so it must survive the wrapper.
-          #
-          # Two bugs fixed here, both invisible until you look at argv:
-          #
-          #  1. `exec` without `-a` replaces argv[0] with the callee's own
-          #     path, so `boot_posture.login` was ALWAYS false when
-          #     frostmourne was the login shell. The convention worked for
-          #     bare `frost` and was silently dropped through the wrapper.
-          #
-          #  2. `export SHELL="$0"` set SHELL to whatever argv[0] happened
-          #     to be — which under login(1) is the literal string
-          #     `-frostmourne`: not a path, not executable. Every
-          #     `getenv("SHELL")` consumer (mado, tear, editors' `:!sh`)
-          #     would try to spawn it and fail. SHELL must be an absolute
-          #     path, so it is derived from $out instead of from argv.
-          _frostmourne_argv0="$0"
-          export SHELL="${placeholder "out"}/bin/frostmourne"
-
-          exec -a "$_frostmourne_argv0" ${frostPkg}/bin/frost "$@"
-        '';
-      }).overrideAttrs (old: {
+      # ── Why a COMPILED wrapper and not writeShellApplication ─────────
+      #
+      # This wrapper runs on every shell spawn — every mado pane, every
+      # `SHELL=` consumer, every login. It used to be a bash script, and
+      # bash costs ~9 ms to start on an M-series mac even with --norc.
+      # Measured on ryn 2026-08-07 after the BASH_ENV refork was fixed
+      # separately (same-batch hyperfine -N, n=30, identical rc):
+      #
+      #   wrapped in bash        60.7 ms
+      #   frost binary direct    51.7 ms      <- the 9.0 ms this removes
+      #
+      # Stated plainly because it was mis-attributed once: the wrapper is
+      # ~9 ms, NOT the ~87 ms first blamed on it. That 87 ms was
+      # hm-session-vars re-forking `$(cat)` per secret on every bash
+      # spawn, fixed in blackmatter's env component. Fixing the wrapper
+      # without fixing that would have looked like a null result.
+      #
+      # makeBinaryWrapper emits a small C program instead of a shell
+      # script, so the exec chain is wrapper -> frost with no interpreter
+      # in between.
+      #
+      # ── What the wrapper MUST preserve ───────────────────────────────
+      #
+      # `--inherit-argv0` is load-bearing, not tidiness. login(1) signals
+      # "this is a login shell" by prefixing argv[0] with a dash — it
+      # invokes us as `-frostmourne` — and frost reads exactly that
+      # convention (frost/crates/frost/src/boot_posture.rs:101,
+      # `argv0.starts_with('-')`). A wrapper that rewrites argv[0] makes
+      # `boot_posture.login` silently false forever, which is the bug the
+      # previous bash wrapper's `exec -a` existed to fix. Same requirement,
+      # expressed as a flag rather than as shell.
+      #
+      # SHELL must be an ABSOLUTE PATH, and must not be derived from
+      # argv[0] — under login(1) argv[0] is the literal string
+      # `-frostmourne`, which is not a path and not executable, so every
+      # `getenv("SHELL")` consumer (mado, tear, an editor's `:!sh`) would
+      # try to spawn it and fail. It is pinned to $out/bin/frostmourne.
+      #
+      # FROSTRC uses --set-default so an operator override still wins.
+      #
+      # FROSTMOURNE_TOOLS_PATH is GONE. It was set on one line and read on
+      # the next and nowhere else — a grep across frostmourne, frost, nix
+      # and blackmatter-shell finds exactly those two lines. The bundled
+      # tools are prefixed onto PATH directly, which is what those two
+      # lines amounted to. Kept out rather than carried forward as a
+      # variable nothing consumes.
+      frostmourne = (pkgs.runCommand "frostmourne" {
+        nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+      } ''
+        mkdir -p $out/bin
+        makeBinaryWrapper ${frostPkg}/bin/frost $out/bin/frostmourne \
+          --inherit-argv0 \
+          --set-default FROSTRC ${rc}/share/frostmourne/rc.lisp \
+          --set SHELL $out/bin/frostmourne \
+          --prefix PATH : ${pkgs.lib.makeBinPath bundledTools}
+      '').overrideAttrs (old: {
         # ── shellPath: what makes this usable as a LOGIN shell at all ────
         # nix-darwin and NixOS accept `users.users.<n>.shell` as either a
         # string or a PACKAGE. Given a package they read `pkg.shellPath` and
