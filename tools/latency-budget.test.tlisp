@@ -1,0 +1,47 @@
+;; frostmourne :: latency-budget tests
+;; ───────────────────────────────────
+;; Run by the `tlisp-test` action, which composes
+;;
+;;     <stdlib> + tools/latency-budget.tlisp + tools/latency-budget.test.tlisp
+;;
+;; into one program and executes `tatara-script --test` on it with
+;; TLISP_TEST=1 — which is what makes the unit define `median` / `budget-ms`
+;; and SKIP its live measurement. See the unit's header for why the gate is
+;; load-bearing rather than tidy.
+;;
+;; `median` and `budget-ms` therefore come from the OTHER half of that
+;; composition, so a per-file lint reports them unbound — the linter's scope
+;; being narrower than the runtime's, which is the exact class the suppression
+;; below exists for. It must stay inside the first 20 lines; the rule reads
+;; only the header (tatara-lisp-lint/src/lib.rs:158).
+;; lint:allow-file unbound-symbol composed with tools/latency-budget.tlisp by the tlisp-test harness
+;;
+;; ── What these can and cannot assert ───────────────────────────────────
+;;
+;; They cover the two properties the unit's own comments CLAIM, and nothing
+;; else. They say nothing about how fast the shell is — that is the
+;; measurement, which is deliberately not run here (a wall-clock ceiling
+;; calibrated on one M-series mac is not a fact about a shared CI runner).
+;; TIER: ordinary unit tests, so `only-mitigated`; neither test makes a bad
+;; state unrepresentable.
+
+(deftest budget-is-declared-not-derived
+  ;; The ceiling must be a literal an operator can read and argue with, not
+  ;; something computed from a previous run — a self-adjusting budget ratchets
+  ;; upward forever and never fails.
+  (assert (> budget-ms 0) "budget must be positive")
+  (assert (< budget-ms 1000) "a budget over a second is not a budget"))
+
+(deftest median-picks-the-middle-not-the-mean
+  ;; Guards the property the unit's comment claims: one huge outlier must not
+  ;; move the result. The mean of these is 2501; the median is 3.
+  (assert (equal? 3 (median (list 1 3 2 10000))) "median must ignore the outlier"))
+
+(deftest the-measurement-is-gated-off-under-tlisp-test
+  ;; The gate itself, asserted rather than assumed. If somebody deletes the
+  ;; `(cond ((equal? (env-get "TLISP_TEST" "") "1") …))` wrapper, the unit's
+  ;; top-level `(exit …)` runs the live benchmark and this whole file stops
+  ;; executing — so the *reaching* of this test is the evidence. Stated out
+  ;; loud because a test that can only fail by never running is easy to
+  ;; mistake for one that is always green.
+  (assert (equal? "1" (env-get "TLISP_TEST" "")) "the harness must set TLISP_TEST=1"))
