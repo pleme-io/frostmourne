@@ -48,6 +48,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run-rc-doctor:
+        description: >-
+          Run the build + rc-doctor job. OFF by default because it does not fit
+          GitHub Free hosted compute — see the job's own header for the two
+          measured runner deaths and what it actually needs. Turn it on when
+          dispatching against a runner that can hold the build closure.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -62,8 +71,10 @@ jobs:
   # `tools/*.tlisp` is the only tlisp in the repo; `lisp/*.lisp` is frost-lisp
   # (a different language, consumed by frost's own loader) and is deliberately
   # NOT linted here — nothing in the fleet lints frost-lisp today, and the rc's
-  # parse is covered end-to-end by the `rc-doctor` job below rather than
-  # claimed by a linter that does not understand the dialect.
+  # parse would be covered end-to-end by the `rc-doctor` job below rather than
+  # claimed by a linter that does not understand the dialect. Stated plainly
+  # because that job is currently OFF: the rc's parse is therefore NOT gated
+  # on a push today. `pending-ci: rc-doctor needs a runner that fits it`.
   #
   # `tlisp-test` composes `<stdlib> + tools/latency-budget.tlisp +
   # tools/latency-budget.test.tlisp` and runs `tatara-script --test` on the
@@ -134,6 +145,47 @@ jobs:
 
   # ── 3. the wrapper builds AND its rc actually loads ─────────────────────
   #
+  # ★★ OFF BY DEFAULT (2026-08-08). This job is CORRECT and it is also TOO BIG
+  # FOR THE COMPUTE THIS ORG HAS. It is kept, configured off, rather than
+  # deleted — the fleet's MODULARIZE-DON'T-DELETE rule — so reviving it is a
+  # flag rather than a rebuild from memory.
+  #
+  # TWO measured deaths, not one guess:
+  #
+  #   run 31234206668  stock nix config          killed at 64 min
+  #   run 31236766416  max-jobs=2 cores=2        killed at ~80 min
+  #                    min-free/max-free set
+  #
+  # Both ended identically: no step log uploaded, `nix build` still reading
+  # `in_progress` on a `failure` job, and GitHub's annotation "The hosted
+  # runner lost communication with the server … starves it for CPU/Memory".
+  # Bounding parallelism did not help, which rules memory out and leaves DISK:
+  # min-free/max-free cannot rescue this build because the paths filling the
+  # volume are the in-progress build's own inputs, which GC may not collect.
+  # A hosted ubuntu-24.04 runner keeps /nix on a root volume with ~20 GB free;
+  # .#frostmourne's RUNTIME closure alone is 4.1 GiB (measured) and its build
+  # closure — rustc plus ~1500 crate derivations for frost, seki, blx and
+  # skim-tab — is multiples of that.
+  #
+  # This is not a defect in the flake. rio, the fleet's own x86_64-linux
+  # builder, built the identical derivation cleanly during this work
+  # (/nix/store/asfkpll4zgdjhy12l6s5v1za7nrfc4pf-frostmourne), and running
+  # tools/rc-doctor.tlisp against THAT artifact under `env -i
+  # HOME=/tmp/fakehome PATH=/usr/bin:/bin` passes every row. So the assertion
+  # is real and verified; only the runner is wrong.
+  #
+  # WHAT IT NEEDS to come back on — one of:
+  #   * a runner whose store volume holds the build closure (the pleme-io ARC
+  #     pool, or any self-hosted box);
+  #   * a binary cache the runner can substitute the five pleme-io inputs
+  #     from, so it downloads rather than builds (★ atatame / super-cache-ci);
+  #   * frostmourne's `bundledTools` shrinking enough to matter — unlikely,
+  #     since the Rust builds and not the nixpkgs tools are the bulk.
+  #
+  # Deliberately NOT "solved" by deleting the assertion or by making the job
+  # `continue-on-error`. A green check that asserts nothing reads as coverage
+  # and is worse than an absent one; a job that is off says what is true.
+  #
   # `nix build .#frostmourne` proves the derivation is buildable on Linux (the
   # flake's own author works on darwin, so this is the arch nobody checks by
   # hand). `tools/rc-doctor.tlisp` then runs the artifact that was just built
@@ -154,6 +206,7 @@ jobs:
   # unusable against any flake with a private input.
   rc-doctor:
     name: 'nix · build + rc doctor'
+    if: ${{ inputs.run-rc-doctor }}
     runs-on: ubuntu-24.04
     # Same reasoning as flake-check's cap, with more headroom: `max-jobs = 2`
     # deliberately trades wall-clock for a runner that survives.
