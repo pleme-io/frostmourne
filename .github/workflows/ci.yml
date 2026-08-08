@@ -66,6 +66,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Bootstrapping the resolver cannot call the resolver, so THIS job's runs-on
+  # is the one place a visibility-only ternary stays correct. Private repos
+  # route to Camelot self-hosted, public repos to free GitHub-hosted. A metered
+  # GitHub-hosted runner on a PRIVATE repo is the one outcome the org invariant
+  # in `pleme-io/actions/runner-resolve` forbids, and on 2026-08-08 that exact
+  # pin exhausted the org's Actions spending limit, blocking every private repo
+  # in pleme-io. Note a queued job on a parked Camelot costs nothing; a metered
+  # job on a private repo costs money whether or not it succeeds.
+  resolve-runner:
+    name: resolve build runner
+    runs-on: ${{ github.event.repository.private && 'camelot-builder-pleme-eks' || 'ubuntu-latest' }}
+    outputs:
+      runner: ${{ steps.resolve.outputs.runner }}
+    steps:
+      - id: resolve
+        uses: pleme-io/actions/runner-resolve@main
+        with:
+          public-runner-default: "ubuntu-24.04"
+
   # ── 1. the tlisp tooling ────────────────────────────────────────────────
   #
   # `tools/*.tlisp` is the only tlisp in the repo; `lisp/*.lisp` is frost-lisp
@@ -91,7 +110,8 @@ jobs:
   # calibrated for.
   tlisp:
     name: 'tlisp · lint + tests'
-    runs-on: ubuntu-24.04
+    needs: resolve-runner
+    runs-on: ${{ needs.resolve-runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -131,7 +151,8 @@ jobs:
   # workflow because without it this job could never have been green.
   flake-check:
     name: 'nix · flake check'
-    runs-on: ubuntu-24.04
+    needs: resolve-runner
+    runs-on: ${{ needs.resolve-runner.outputs.runner }}
     # ~60 min measured on the first run. The cap is not tidiness: this is a
     # PRIVATE repo, so every minute is billed against the org's 2000/month
     # Free allowance, and GitHub's own default cap is 6 HOURS. A wedged job
@@ -207,7 +228,8 @@ jobs:
   rc-doctor:
     name: 'nix · build + rc doctor'
     if: ${{ inputs.run-rc-doctor }}
-    runs-on: ubuntu-24.04
+    needs: resolve-runner
+    runs-on: ${{ needs.resolve-runner.outputs.runner }}
     # Same reasoning as flake-check's cap, with more headroom: `max-jobs = 2`
     # deliberately trades wall-clock for a runner that survives.
     timeout-minutes: 180
