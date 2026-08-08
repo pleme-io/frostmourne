@@ -87,7 +87,7 @@ jobs:
       # Balanced parens/strings/comments, a parser dry-run, and
       # `tatara-script lint`'s semantic rules over every *.tlisp in the repo.
       - name: tlisp-lint
-        uses: pleme-io/actions/tlisp-lint@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        uses: pleme-io/actions/tlisp-lint@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
 
       # `min-files: 1` is the zero-denominator floor: without it a discovery
       # failure (wrong cwd, a rename that stopped matching the glob) reports
@@ -95,7 +95,7 @@ jobs:
       # real pass. One is the honest number today — raise it when a second
       # *.test.tlisp lands.
       - name: tlisp-test
-        uses: pleme-io/actions/tlisp-test@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        uses: pleme-io/actions/tlisp-test@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
           min-files: "1"
 
@@ -121,9 +121,14 @@ jobs:
   flake-check:
     name: 'nix · flake check'
     runs-on: ubuntu-24.04
+    # ~60 min measured on the first run. The cap is not tidiness: this is a
+    # PRIVATE repo, so every minute is billed against the org's 2000/month
+    # Free allowance, and GitHub's own default cap is 6 HOURS. A wedged job
+    # would quietly eat a fifth of the month before anyone looked.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - uses: pleme-io/actions/nix-flake-check@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+      - uses: pleme-io/actions/nix-flake-check@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
           github-token: ${{ secrets.BOT_PAT }}
 
@@ -150,21 +155,47 @@ jobs:
   rc-doctor:
     name: 'nix · build + rc doctor'
     runs-on: ubuntu-24.04
+    # Same reasoning as flake-check's cap, with more headroom: `max-jobs = 2`
+    # deliberately trades wall-clock for a runner that survives.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
+      # ── nix's defaults KILL this runner; the numbers below are measured ──
+      #
+      # The first attempt (run 31234206668) used stock config and the runner
+      # died at 64 minutes with no step log uploaded, the step still reading
+      # `in_progress` on a `failure` job. GitHub's annotation: "The hosted
+      # runner lost communication with the server … starves it for
+      # CPU/Memory". That is the agent being killed, not a build failing.
+      #
+      # `max-jobs`/`cores` bound concurrent rustc processes — nix defaults to
+      # `auto`/`0`, which is right for a build machine and wrong for 4 cores
+      # and 16 GB. `min-free`/`max-free` let the daemon collect garbage
+      # mid-build when the volume drops under 1 GiB, rather than filling it:
+      # the runtime closure alone is 4.1 GiB (measured on rio) before any
+      # Rust build tree.
+      #
+      # Both are set because the annotation names CPU/memory AND disk and the
+      # dead runner uploaded nothing to distinguish them. Fixing one and
+      # guessing wrong costs another hour per attempt.
       - name: nix build .#frostmourne
         id: build
-        uses: pleme-io/actions/nix-build@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        uses: pleme-io/actions/nix-build@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
           flake-ref: .#frostmourne
           github-token: ${{ secrets.BOT_PAT }}
+          extra-conf: |
+            max-jobs = 2
+            cores = 2
+            min-free = 1073741824
+            max-free = 3221225472
 
       # script-file, never an inline `run:` — the tlisp is a committed,
       # reviewable, lintable file (job 1 lints it) rather than a heredoc, and
       # passing a PATH keeps the whole script out of the step's env dump.
       - name: rc doctor against the built wrapper
-        uses: pleme-io/actions/tatara-script@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        uses: pleme-io/actions/tatara-script@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
           script-file: tools/rc-doctor.tlisp
           args: ${{ steps.build.outputs.out-path }}
