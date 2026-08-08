@@ -1,0 +1,170 @@
+# frostmourne CI — the repo's first pipeline (2026-08-08).
+#
+# ── WHY THIS IS A LIST OF `uses:` AND NOT A REUSABLE-WORKFLOW SHIM ───────
+#
+# The fleet rule is that a consumer workflow is a ~5-line `uses:` shim over a
+# catalogued substrate reusable (★ pleme-actions, ★★ Super-Cache-CI). The
+# catalog was read first: `substrate/catalog/workflows.lisp`, 88 rows. Its two
+# `:pattern nix` rows are `nix-image-auto-release` (build + scan + push an OCI
+# image) and `nix-devshell-cargo-test` (`cargo test` inside a named devShell).
+# frostmourne is neither — it publishes no image and has no Cargo workspace; it
+# is a flake that concatenates `lisp/*.lisp` into one rc and wraps the `frost`
+# binary. `pre-merge-gate` was also considered and does not fit: its
+# `detect-repo-type` router has no branch that reaches a bare flake, so on this
+# repo it would run the universal legs and skip every language gate.
+#
+# So there is genuinely no reusable for this shape, and the standing fallback
+# applies: consume the closest ACTIONS from `pleme-io/actions` rather than
+# invent steps. Every job below is `uses:` + `with:` — there is not one `run:`
+# block in this file, and every executable line comes from a reviewed action
+# with an owner and its own tests (the `deshellify` positive standard).
+#
+# If a `nix-flake-build-check` reusable is ever written, this file collapses
+# into a shim over it. Until then it is four `uses:` steps, not a hand-rolled
+# composite.
+#
+# ── RUNNER: `ubuntu-24.04`, PINNED, NOT `ubuntu-latest` ──────────────────
+#
+# `tatara-script`'s release binary is linked against glibc 2.39, which
+# `ubuntu-22.04` (2.35) does not have — the step dies instantly with a
+# GLIBC_2.39 error. Pinned rather than `-latest` so the floor is stated.
+#
+# ── CREDENTIALS: `BOT_PAT` IS REQUIRED, AND ITS ABSENCE LIES ─────────────
+#
+# frostmourne is a PRIVATE repo whose flake pulls four PRIVATE pleme-io inputs
+# (frost, seki, blx, skim-tab) and, transitively, private git CRATES —
+# `pleme-io/reedline` among them. pleme-io is on GitHub Free, where org
+# secrets reach PUBLIC repos only, so `BOT_PAT` must exist as a REPO-level
+# secret here (set 2026-08-08). Without it nix's GitHub fetcher is anonymous
+# and the failure surfaces as an HTTP 404 on
+# `api.github.com/repos/<o>/<r>/tarball/<rev>` — which reads like a bad rev
+# rather than "you are not authenticated".
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. the tlisp tooling ────────────────────────────────────────────────
+  #
+  # `tools/*.tlisp` is the only tlisp in the repo; `lisp/*.lisp` is frost-lisp
+  # (a different language, consumed by frost's own loader) and is deliberately
+  # NOT linted here — nothing in the fleet lints frost-lisp today, and the rc's
+  # parse is covered end-to-end by the `rc-doctor` job below rather than
+  # claimed by a linter that does not understand the dialect.
+  #
+  # `tlisp-test` composes `<stdlib> + tools/latency-budget.tlisp +
+  # tools/latency-budget.test.tlisp` and runs `tatara-script --test` on the
+  # result with TLISP_TEST=1. That env var is what makes the unit define its
+  # helpers and SKIP its live spawn benchmark — see the unit's header for why
+  # the gate had to exist before `--test` could reach a single test.
+  #
+  # THE LIVE MEASUREMENT IS DELIBERATELY NOT RUN HERE. `latency-budget`'s
+  # 90 ms ceiling is wall-clock, calibrated on one M-series darwin box. A
+  # shared GitHub runner is a different, noisy, virtualized machine, so a red
+  # would mean "the runner was busy" far more often than "the shell
+  # regressed" — and a gate whose red is usually noise gets muted, which costs
+  # more than it ever caught. It stays a human-run check on the machine it was
+  # calibrated for.
+  tlisp:
+    name: 'tlisp · lint + tests'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Balanced parens/strings/comments, a parser dry-run, and
+      # `tatara-script lint`'s semantic rules over every *.tlisp in the repo.
+      - name: tlisp-lint
+        uses: pleme-io/actions/tlisp-lint@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+
+      # `min-files: 1` is the zero-denominator floor: without it a discovery
+      # failure (wrong cwd, a rename that stopped matching the glob) reports
+      # "all 0 file(s) passed" and exits 0, which is indistinguishable from a
+      # real pass. One is the honest number today — raise it when a second
+      # *.test.tlisp lands.
+      - name: tlisp-test
+        uses: pleme-io/actions/tlisp-test@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        with:
+          min-files: "1"
+
+  # ── 2. the flake must evaluate ──────────────────────────────────────────
+  #
+  # This is the primary gate. It is not a formality on this repo: evaluating
+  # `packages.<system>.default` forces gen's `cargo-build-spec-ifd` for frost,
+  # seki, blx, skim-tab and wadachi (import-from-derivation), so a broken
+  # input, a stale transitive lock, or an unfetchable private crate fails
+  # HERE — before anything is built.
+  #
+  # It caught exactly that on the way in. frostmourne's lock pinned frost's
+  # own `substrate` to 89174bb3 (2026-06-08) — months behind frost's own lock
+  # (1c8110fe) — and that substrate predates the lockfile-builder fix that
+  # routes github git-crates through `builtins.fetchTree { type = "github"; }`
+  # instead of `pkgs.fetchgit`. The difference is decisive rather than
+  # cosmetic: fetchgit shells `git clone` inside a fixed-output derivation,
+  # which has network but NO credentials, so `access-tokens` cannot reach it
+  # and the private `pleme-io/reedline` crate died with `could not read
+  # Username for 'https://github.com'`. On the fetchTree path the same token
+  # works. `nix flake update frost` was the fix; the lock bump ships with this
+  # workflow because without it this job could never have been green.
+  flake-check:
+    name: 'nix · flake check'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pleme-io/actions/nix-flake-check@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        with:
+          github-token: ${{ secrets.BOT_PAT }}
+
+  # ── 3. the wrapper builds AND its rc actually loads ─────────────────────
+  #
+  # `nix build .#frostmourne` proves the derivation is buildable on Linux (the
+  # flake's own author works on darwin, so this is the arch nobody checks by
+  # hand). `tools/rc-doctor.tlisp` then runs the artifact that was just built
+  # and asserts the end-to-end facts: the rc parsed and applied, and all 27
+  # bundled tools resolve on the wrapper's PATH.
+  #
+  # It asserts those facts by reading `--doctor`'s report rather than by
+  # trusting its exit code, and the reason is in the script's header: frost's
+  # `run_doctor` folds "does each (defmark …) path exist" into the same
+  # `any_warnings` flag it returns, and frostmourne declares 21 marks under
+  # `$HOME/code/github/pleme-io/…` — a workstation layout that exists on no
+  # runner. Wiring the raw exit code would have produced a check that is red
+  # on green input.
+  #
+  # `nix-build` is used here for the first time in the org with a token: it
+  # gained `github-token` + `sandbox = relaxed` on 2026-08-07 (actions@a2bd074),
+  # the same pair `nix-flake-check` already carried. Before that it was
+  # unusable against any flake with a private input.
+  rc-doctor:
+    name: 'nix · build + rc doctor'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: nix build .#frostmourne
+        id: build
+        uses: pleme-io/actions/nix-build@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        with:
+          flake-ref: .#frostmourne
+          github-token: ${{ secrets.BOT_PAT }}
+
+      # script-file, never an inline `run:` — the tlisp is a committed,
+      # reviewable, lintable file (job 1 lints it) rather than a heredoc, and
+      # passing a PATH keeps the whole script out of the step's env dump.
+      - name: rc doctor against the built wrapper
+        uses: pleme-io/actions/tatara-script@a2bd0748f57bb21ad8a9be4f54e0a4411f4c9aec
+        with:
+          script-file: tools/rc-doctor.tlisp
+          args: ${{ steps.build.outputs.out-path }}
