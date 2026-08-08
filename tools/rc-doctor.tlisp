@@ -1,0 +1,181 @@
+;; frostmourne :: rc-doctor
+;; ────────────────────────
+;; The end-to-end assertion: a freshly BUILT frostmourne loads its bundled rc
+;; and every tool the rc drives is on PATH. Run in CI against the store path
+;; `nix build` just produced, so it exercises the real artifact rather than a
+;; plausible-looking sibling of it.
+;;
+;;   tatara-script tools/rc-doctor.tlisp <store-path-or-binary>
+;;
+;; ── WHY THIS IS NOT JUST `frostmourne --doctor; echo $?` ────────────────
+;;
+;; Because that exit code is NOT the assertion it looks like. `run_doctor`
+;; (frost/crates/frost/src/main.rs:262) folds four independent conditions into
+;; one `any_warnings` flag and returns 1 if any of them tripped — and one of
+;; them is "does each (defmark …) path exist on this filesystem".
+;; frostmourne's lisp/03-marks.lisp declares 21 marks under
+;; `$HOME/code/github/pleme-io/…`, which is a workstation layout present on no
+;; CI runner. Measured 2026-08-08 with `env -i HOME=/tmp/fakehome
+;; PATH=/usr/bin:/bin`: exit 1, rc perfectly healthy.
+;;
+;; Wiring the raw exit code would therefore have produced a check that is red
+;; on green input — and a red nobody can act on gets muted, which is strictly
+;; worse than the no-check state it replaced. So this script asserts the
+;; conditions that ARE facts about the artifact, and says out loud which ones
+;; it tolerates and why.
+;;
+;; ── WHAT IS ASSERTED (each fails the job) ──────────────────────────────
+;;
+;;   1. the rc LOADED           — the `loaded aliases=…` line is present
+;;   2. the rc did NOT fail     — no `load failed:` line
+;;   3. the rc is not EMPTY     — a `pickers` section exists, which the doctor
+;;                                prints only when the rc registered pickers.
+;;                                Without this an rc that parsed to zero forms
+;;                                would satisfy 1 and 2 and pass.
+;;   4. no UNEXPECTED tool is missing — the doctor's `N/M on PATH; missing: …`
+;;                                list is parsed and compared against the one
+;;                                declared debt below. A second name failing
+;;                                to resolve is red.
+;;
+;; ── WHAT IS TOLERATED, EACH NAMED ──────────────────────────────────────
+;;
+;;   mark paths — `?`-tagged marks are reported and not failed on. They are a
+;;   statement about the machine's home directory, not about the build.
+;;
+;;   `zoxide` — a REAL, CURRENT cross-repo drift, not a fudge. frostmourne
+;;   retired zoxide in favour of wadachi (lisp/60-tools-wadachi.lisp; zoxide is
+;;   not in `bundledTools`), but frost's doctor still lists `zoxide` among the
+;;   27 canonical tools it probes (frost/crates/frost/src/main.rs:311). So a
+;;   correct build reports `26/27 … missing: zoxide` on any machine that does
+;;   not separately install zoxide — which is why this never showed up on the
+;;   author's workstation, where home-manager provides it. The fix belongs in
+;;   frost's list, not here; until it lands this is a NAMED debt rather than a
+;;   silent tolerance.
+;;   `pending-rc-doctor: frost's canonical tool list still names zoxide`
+;;
+;; TIER: only-mitigated. This is a parse of a human-readable report, not a
+;; typed surface — a reworded doctor line would make a row stop asserting
+;; rather than go red. The typed version is a `--doctor --json` mode in frost
+;; that this could consume instead; that does not exist today, and inventing
+;; the contract here would put it in the wrong repo.
+;; `pending-rc-doctor: typed --doctor output`
+
+;; The one declared debt. A name leaves this list by being fixed upstream, and
+;; the list may never grow without the reason being written beside it.
+(define known-missing (list "zoxide"))
+
+(define raw (or (argv-get 0) "frostmourne"))
+
+;; Accept either a store path (`/nix/store/…-frostmourne`, which is what
+;; `nix-build`'s out-path output hands us) or a binary path directly.
+(define bin
+  (let ((nested (path-join raw "bin/frostmourne")))
+    (if (path-exists? nested) nested raw)))
+
+(println (string-append "rc-doctor: probing " bin))
+
+;; ── alist-get, NOT the stdlib's stdout-of/stderr-of/status-of ──────────
+;;
+;; Those three are defined in `pleme-io/actions/_tlisp-stdlib/stdlib.tlisp`,
+;; and the `tatara-script` action prepends that stdlib only when an action
+;; `cat`s it. Invoked with `script-file:` — which is how this file runs — the
+;; script is executed AS ITSELF, with nothing in front of it. The first cut
+;; used `(stdout-of result)` and died with `unbound symbol stdout-of` before
+;; the first assertion, which is a red that says nothing about frostmourne.
+;; `exec-capture` returns a keyword-keyed alist and `alist-get` is an
+;; interpreter primitive, so this form needs no prelude at all.
+(define result (exec-capture bin "--doctor"))
+
+;; The doctor writes ANSI unconditionally (no NO_COLOR / isatty branch), so
+;; strip the escapes once here rather than writing every needle below to dodge
+;; a colour boundary it cannot see.
+(define report
+  (re-replace "\\x1b\\[[0-9;]*m"
+    (string-append (alist-get result :stdout) "\n" (alist-get result :stderr))
+    ""))
+
+;; Print the whole report BEFORE judging it. When a row goes red the operator
+;; needs the doctor's own output in the same log, not a bare verdict.
+(println "── frostmourne --doctor ─────────────────────────────────────────")
+(println report)
+(println "─────────────────────────────────────────────────────────────────")
+(println
+  (string-format "rc-doctor: --doctor exited {} (1 is EXPECTED here — see the header)"
+    (alist-get result :status)))
+
+;; ── presence rows ──────────────────────────────────────────────────────
+;; (label, must-be-present?, needle). Data, so a new condition is one line and
+;; the reporting loop never grows a special case.
+(define rows
+  (list
+    (list "rc loaded"             #t "loaded  aliases=")
+    (list "rc load did not fail"  #f "load failed")
+    (list "rc registered pickers" #t "pickers")))
+
+(define (check row)
+  (let* ((label (nth 0 row))
+         (want (nth 1 row))
+         (needle (nth 2 row))
+         (found (string-contains? report needle))
+         (ok (equal? found want)))
+    (if ok
+      (begin (println (string-append "  ok    " label)) 0)
+      (begin
+        (log-error
+          (string-append "  FAIL  " label
+            (if want
+              (string-append " — expected the report to contain \"" needle "\"")
+              (string-append " — the report contains \"" needle "\""))))
+        1))))
+
+;; ── the bundled-tool row ───────────────────────────────────────────────
+;; Parses the missing LIST rather than matching a fixed count string, so it
+;; keeps asserting when frost's canonical list changes size — a count pin
+;; would go red on an unrelated frost bump and teach people to ignore it.
+;; `re-find` returns an empty list rather than "" on no match, so the
+;; presence question is asked with `re-match?` first — handing a nil to the
+;; next primitive is the shape that dies one call away from the real miss.
+(define has-missing-line (re-match? "on PATH; missing:" report))
+
+(define missing-line
+  (if has-missing-line (re-find "on PATH; missing:[^\n]*" report) ""))
+
+(define missing-names
+  (if (not has-missing-line)
+    (list)
+    (filter (fn (n) (not (equal? n "")))
+      (map string-trim
+        (string-split (string-trim (re-replace "^on PATH; missing:" missing-line "")) ",")))))
+
+(define unexpected
+  (filter (fn (n) (not (member? n known-missing))) missing-names))
+
+(define tools-failures
+  (cond
+    ((not has-missing-line)
+      (println "  ok    every bundled tool resolves on the wrapper's PATH")
+      0)
+    ((= (length unexpected) 0)
+      (println
+        (string-format "  ok    only the declared debt is missing: {} (see the header)"
+          (string-join ", " missing-names)))
+      0)
+    (else
+      (log-error
+        (string-format "  FAIL  bundled tools missing beyond the declared debt: {}"
+          (string-join ", " unexpected)))
+      (log-error
+        "        Either the flake stopped bundling one, or frost's canonical list grew a name.")
+      1)))
+
+(define failures
+  (+ tools-failures (reduce (fn (acc r) (+ acc (check r))) 0 rows)))
+
+(cond
+  ((= failures 0)
+    (println "rc-doctor: the built frostmourne loads its rc and resolves every bundled tool it should")
+    (exit 0))
+  (else
+    (log-error
+      (string-format "rc-doctor: {} assertion(s) failed against {}" failures bin))
+    (exit 1)))
