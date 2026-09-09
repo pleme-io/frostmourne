@@ -64,9 +64,30 @@
 ;; `vi` selects the vi keymap on day one — blzsh runs `bindkey -v`
 ;; unconditionally, so the operator lives in vi mode; without this frost's
 ;; REPL falls back to emacs, a base-keymap divergence on switchover.
+;; ★ `shwordsplit` — POSIX field splitting for unquoted parameters.
+;;
+;; zsh does NOT split an unquoted `$var` into words; `sh` and `bash` do. That
+;; is zsh's deliberate design and frost implements it faithfully, so
+;;
+;;     OPTS="-o Foo -o Bar"; ssh $OPTS host
+;;
+;; passes ONE argument containing spaces, and the remote tool reports something
+;; unrelated-looking ("keyword ... extra arguments at end of line"). Every
+;; operator reflex here comes from bash, and the failure never names the cause.
+;;
+;; Enabled by OPERATOR DECISION (2026-09-09) after it bit repeatedly in live
+;; work. The trade is real and worth stating: any existing frostmourne script
+;; relying on zsh's no-split behaviour for a value CONTAINING WHITESPACE now
+;; splits. Quoting fixes those — `"$var"` is one word under every option — and
+;; quoting is what the rest of the world already writes.
+;;
+;; Requires frost >= the commit that made the option actually DO something:
+;; `ShellOption::ShWordSplit` was defined and parsed and read by nothing, so
+;; `setopt shwordsplit` reported success and changed no behaviour.
 (defopts :enable ("extendedglob" "globdots" "promptsubst"
                   "histignoredups" "histignorespace"
-                  "interactivecomments" "autocd" "vi")
+                  "interactivecomments" "autocd" "vi"
+                  "shwordsplit")
          :disable ("beep"))
 
 ;; ── Environment ───────────────────────────────────────────────────

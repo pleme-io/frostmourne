@@ -323,6 +323,47 @@
         program = "${frostmourne}/bin/frostmourne";
       };
 
+      # ── Regression tests: BEHAVIOUR of the assembled shell ────────────────
+      #
+      # These run the real frostmourne binary against the real rc, because the
+      # thing worth protecting is not "is the option listed in a lisp file" —
+      # it is "does the shell actually split". `setopt shwordsplit` was defined
+      # and parsed by frost and read by NOTHING for its whole existence: the
+      # option reported success and changed no behaviour. A test that asserted
+      # the CONFIG would have passed the entire time.
+      checks = {
+        shwordsplit = pkgs.runCommand "frostmourne-shwordsplit" { } ''
+          fm=${frostmourne}/bin/frostmourne
+
+          # 1. an unquoted parameter SPLITS into separate words
+          got=$(printf 'x="a b c"\nset -- $x\necho $#\n' | "$fm" 2>/dev/null | tail -1)
+          if [ "$got" != "3" ]; then
+            echo "unquoted \$x must split into 3 words, got: '$got'"
+            echo "This is the bug that made 'ssh \$OPTS host' pass one giant argument."
+            exit 1
+          fi
+
+          # 2. QUOTING still wins — the whole point of quoting, and the thing
+          #    enabling shwordsplit must not break.
+          got=$(printf 'x="a b c"\nset -- "$x"\necho $#\n' | "$fm" 2>/dev/null | tail -1)
+          if [ "$got" != "1" ]; then
+            echo "\"\$x\" must stay ONE word, got: '$got'"
+            exit 1
+          fi
+
+          # 3. a scalar assignment is unaffected — field splitting is a
+          #    property of the CONTEXT, not of the expansion.
+          got=$(printf 'x="a b c"\ny=$x\necho "[$y]"\n' | "$fm" 2>/dev/null | tail -1)
+          if [ "$got" != "[a b c]" ]; then
+            echo "assignment must keep the spaces, got: '$got'"
+            exit 1
+          fi
+
+          echo "shwordsplit: splits unquoted, respects quotes, leaves assignment alone"
+          touch $out
+        '';
+      };
+
       devShells.default = pkgs.mkShell {
         packages = [ frostPkg ] ++ bundledTools;
         shellHook = ''
