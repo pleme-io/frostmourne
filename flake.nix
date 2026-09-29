@@ -362,6 +362,16 @@
           echo "shwordsplit: splits unquoted, respects quotes, leaves assignment alone"
           touch $out
         '';
+
+        # A continuation line drawn with PS1 made an unclosed quote invisible
+        # (frost#4). The rc must hand frost a PS2 that names the open construct.
+        ps2 = pkgs.runCommand "frostmourne-ps2" { } ''
+          got=$(printf 'echo "$PS2"\n' | ${frostmourne}/bin/frostmourne 2>/dev/null | tail -1)
+          case "$got" in
+            *%_*) echo "ps2: $got"; touch $out ;;
+            *) echo "PS2 must contain %_, got: '$got'"; exit 1 ;;
+          esac
+        '';
       };
 
       devShells.default = pkgs.mkShell {

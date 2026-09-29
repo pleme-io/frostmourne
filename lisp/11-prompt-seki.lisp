@@ -28,3 +28,10 @@
 ;; lisp/10-prompt.lisp from your layer to use this.
 (defprompt
   :command "seki prompt --status=\"$?\" --shell=frostmourne")
+
+;; Continuation prompt. seki only drives PS1, so PS2 is set here and the
+;; build-time seki form (which has no :ps2) leaves it alone. `%_` names
+;; what is still open (`quote> `, `for dquote> `, `heredoc> `), so an
+;; unclosed quote can never pass for a fresh prompt.
+(defprompt
+  :ps2 "%F{244}%_%f%F{cyan}>%f ")

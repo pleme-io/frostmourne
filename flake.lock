@@ -3750,11 +3750,11 @@
         "substrate": "substrate_2"
       },
       "locked": {
-        "lastModified": 1788991240,
-        "narHash": "sha256-iIBdz5wORsDUqhG93cV5nnwfveY6N+RjyS9whcWiPB4=",
+        "lastModified": 1790637113,
+        "narHash": "sha256-MwiLLGTUtVzgIhMmcMb91mzJKKx1vX8OwH7PQbOaSZk=",
         "owner": "pleme-io",
         "repo": "frost",
-        "rev": "c6289a77f38ca903648d2d16e639051d0d440f0f",
+        "rev": "32392d3dcfbd4a5cc414adbbb3856b1436ac6dbd",
         "type": "github"
       },
       "original": {
