@@ -278,6 +278,21 @@
       # tools are prefixed onto PATH directly, which is what those two
       # lines amounted to. Kept out rather than carried forward as a
       # variable nothing consumes.
+      #
+      # ── Nix profile dirs on PATH ─────────────────────────────────────
+      # frostmourne sources none of nix-darwin's /etc/zshrc / path_helper
+      # chain, so on a GUI-launched spawn (mado → frostmourne) it inherits
+      # a PATH with no nix profile dirs at all. The two STATIC dirs are
+      # prefixed here so `nix`, `darwin-rebuild` and the system profile
+      # resolve on any nix host regardless of what spawned us.
+      #
+      # The per-user dir (/etc/profiles/per-user/$USER/bin — where ~140 HM
+      # tools live) is NOT here on purpose: makeBinaryWrapper embeds its
+      # --prefix value literally and cannot resolve $USER at runtime, and
+      # this package is fleet-generic (no user baked in). That dir is
+      # supplied two other ways — the nix-darwin launchd user-path guard,
+      # and frost's own boot-time nix detection (resolves $USER live) —
+      # either of which makes this wrapper's static list retire-able.
       frostmourne = (pkgs.runCommand "frostmourne" {
         nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
       } ''
@@ -286,7 +301,7 @@
           --inherit-argv0 \
           --set-default FROSTRC ${rc}/share/frostmourne/rc.lisp \
           --set SHELL $out/bin/frostmourne \
-          --prefix PATH : ${pkgs.lib.makeBinPath bundledTools}
+          --prefix PATH : ${pkgs.lib.makeBinPath bundledTools}:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin
       '').overrideAttrs (old: {
         # ── shellPath: what makes this usable as a LOGIN shell at all ────
         # nix-darwin and NixOS accept `users.users.<n>.shell` as either a
