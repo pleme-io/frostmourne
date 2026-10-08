@@ -301,7 +301,7 @@
           --inherit-argv0 \
           --set-default FROSTRC ${rc}/share/frostmourne/rc.lisp \
           --set SHELL $out/bin/frostmourne \
-          --prefix PATH : ${pkgs.lib.makeBinPath bundledTools}:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin
+          --prefix PATH : ${pkgs.lib.makeBinPath bundledTools}:/run/wrappers/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin
       '').overrideAttrs (old: {
         # ── shellPath: what makes this usable as a LOGIN shell at all ────
         # nix-darwin and NixOS accept `users.users.<n>.shell` as either a
