@@ -1,18 +1,15 @@
 ;; frostmourne :: 05-notify
 ;; ────────────────────────
-;; Desktop notification when a command's runtime exceeds 30 seconds.
-;; Checks `$FROST_CMD_DURATION_MS` (set by the precmd hook in
-;; 20-hooks.lisp) and shells out to the platform notifier:
+;; Long-command notification. Checks `$FROST_CMD_DURATION_MS` (set by the
+;; precmd hook in 20-hooks.lisp) and writes an OSC 777 to the terminal,
+;; so the terminal owns the banner (mado: focus-aware, click focuses the
+;; pane). No process is spawned. Text carries exit status and duration.
 ;;
-;;   macOS  — osascript `display notification`
-;;   Linux  — notify-send (libnotify) / dunstify (dunst)
+;;   :via "osc"        — default, through the terminal
+;;   :via "osascript"  — opt-in, Script-Editor-attributed banner
+;;   :via "libnotify"  — opt-in, notify-send
+;;   :enabled #f       — keep the form, silence it
 ;;
-;; Missing notifier ⇒ silent no-op; use case is "walk away while
-;; the build runs, hear the beep when it's done". Users override via
-;; a later (defnotify …) form (last writer wins via the hook-
-;; composition pile — both bodies still fire, but a user can
-;; effectively disable with a `:threshold-ms` they'll never hit).
-
 ;; ── RE-ENABLED 2026-06-10 (engine fix frost 1f66d1c) ───────────────
 ;; This form briefly froze the shell after the first accept-line: its
 ;; synthesized precmd's `2>/dev/null` builtin redirect made frost cycle
