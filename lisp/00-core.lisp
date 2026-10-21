@@ -84,10 +84,18 @@
 ;; Requires frost >= the commit that made the option actually DO something:
 ;; `ShellOption::ShWordSplit` was defined and parsed and read by nothing, so
 ;; `setopt shwordsplit` reported success and changed no behaviour.
+
+;; kittykeyboard: ask the terminal for the kitty keyboard protocol while a line
+;; is edited, so modified keys arrive unambiguously. This is the AUTO setting:
+;; frost's line editor probes the terminal first and requests the protocol only
+;; where it answers, so a terminal without it keeps the legacy keys. Requires
+;; frost >= 0.1.25. A host that pushes the protocol and never pops it is cleaned
+;; up by mado and tear at the next command end, so Enter at the prompt stays
+;; Enter.
 (defopts :enable ("extendedglob" "globdots" "promptsubst"
                   "histignoredups" "histignorespace"
                   "interactivecomments" "autocd" "vi"
-                  "shwordsplit")
+                  "shwordsplit" "kittykeyboard")
          :disable ("beep"))
 
 ;; ── Environment ───────────────────────────────────────────────────
