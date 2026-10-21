@@ -29,16 +29,11 @@
 # `ubuntu-22.04` (2.35) does not have — the step dies instantly with a
 # GLIBC_2.39 error. Pinned rather than `-latest` so the floor is stated.
 #
-# ── CREDENTIALS: `BOT_PAT` IS REQUIRED, AND ITS ABSENCE LIES ─────────────
+# ── CREDENTIALS: NONE BEYOND THE BUILT-IN TOKEN ──────────────────────────
 #
-# frostmourne is a PRIVATE repo whose flake pulls four PRIVATE pleme-io inputs
-# (frost, seki, blx, skim-tab) and, transitively, private git CRATES —
-# `pleme-io/reedline` among them. pleme-io is on GitHub Free, where org
-# secrets reach PUBLIC repos only, so `BOT_PAT` must exist as a REPO-level
-# secret here (set 2026-08-08). Without it nix's GitHub fetcher is anonymous
-# and the failure surfaces as an HTTP 404 on
-# `api.github.com/repos/<o>/<r>/tarball/<rev>` — which reads like a bad rev
-# rather than "you are not authenticated".
+# frostmourne and every input it pulls (frost, seki, blx, skim-tab, nixpkgs,
+# flake-utils, wadachi) are public, so nix's GitHub fetcher needs no secret.
+# The workflow passes the built-in `github.token` only to lift API rate limits.
 
 name: ci
 
@@ -162,7 +157,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pleme-io/actions/nix-flake-check@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
-          github-token: ${{ secrets.BOT_PAT }}
+          github-token: ${{ github.token }}
 
   # ── 3. the wrapper builds AND its rc actually loads ─────────────────────
   #
@@ -259,7 +254,7 @@ jobs:
         uses: pleme-io/actions/nix-build@3c76f440fdfa406ba5c314c1d6032b2f9da7eaf5
         with:
           flake-ref: .#frostmourne
-          github-token: ${{ secrets.BOT_PAT }}
+          github-token: ${{ github.token }}
           extra-conf: |
             max-jobs = 2
             cores = 2
