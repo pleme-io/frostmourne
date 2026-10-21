@@ -10,6 +10,14 @@
 ;;   :via "libnotify"  — opt-in, notify-send
 ;;   :enabled #f       — keep the form, silence it
 ;;
+;; ── Shell integration (OSC 133) and the one-notification rule ──────
+;; frost itself writes OSC 133 A/B/C/D marks (C carries the command as
+;; cmdline_url) when stdout is a tty, so a terminal such as mado draws
+;; its own finished-command card. While that is active frost sets
+;; `$FROST_OSC133_ACTIVE` and this form's precmd yields: one finished
+;; command makes one notification. Turn the marks off with
+;; `unsetopt osc133` or `FROST_OSC133=0` and this form fires as before.
+;;
 ;; ── RE-ENABLED 2026-06-10 (engine fix frost 1f66d1c) ───────────────
 ;; This form briefly froze the shell after the first accept-line: its
 ;; synthesized precmd's `2>/dev/null` builtin redirect made frost cycle

@@ -36,6 +36,11 @@ order matters:
 - **`FROST_CMD_DURATION_MS`** is published by `20-hooks.lisp`'s `precmd` and
   read by the `precmd` that `05-notify.lisp`'s `(defnotify …)` synthesizes.
   It starts at 0 on the first prompt, which is correct — no command has run.
+- **Shell integration (OSC 133)** is frost's own, not an rc form: frost writes
+  the A/B/C/D marks when stdout is a tty (`unsetopt osc133` or `FROST_OSC133=0`
+  turns it off) and sets `FROST_OSC133_ACTIVE`, which makes the `defnotify`
+  precmd skip itself, so a terminal that draws a card per command (mado) is the
+  only notifier.
 
 > This coupling is a string, checked by nobody, and that is a known defect
 > rather than a design: `FROST_GIT_BRANCH` used to live here too and cost a
