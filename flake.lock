@@ -8259,11 +8259,11 @@
         "substrate": "substrate_4"
       },
       "locked": {
-        "lastModified": 1791126380,
-        "narHash": "sha256-fi1dGSQPiYkQedoFMwOfuviqpS6aX4TYAl9sJmbFPjw=",
+        "lastModified": 1792848345,
+        "narHash": "sha256-62jjJR0X0sjXCyr4lIp6p6cFS8nrwOucrbrRaTcZA9k=",
         "owner": "pleme-io",
         "repo": "seki",
-        "rev": "bc3639035ad401c1ba23b327b31d959ebc5489ed",
+        "rev": "7e59b841c60fbf6bd3f82b8e66e5b5abaf61cc64",
         "type": "github"
       },
       "original": {
