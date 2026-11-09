@@ -34,7 +34,6 @@
 
 ;; ── Most-visited fleet repos (from atuin cwd frequency) ──────────
 (defmark :name "k8s"        :path "$HOME/code/github/pleme-io/k8s")
-(defmark :name "theory"     :path "$HOME/code/github/pleme-io/theory")
 (defmark :name "tend-"      :path "$HOME/code/github/pleme-io/tend")
 (defmark :name "sui-"       :path "$HOME/code/github/pleme-io/sui")
 (defmark :name "tatara-"    :path "$HOME/code/github/pleme-io/tatara")

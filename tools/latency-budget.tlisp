@@ -30,7 +30,7 @@
 ;; to a human (time-to-first-prompt, Enter→prompt, cd) need a pty harness that
 ;; answers frost's boot-time DSR cursor query, and that is genuinely not
 ;; expressible here: tatara-script's process family is exec/capture, with no
-;; pty(2) or select(2). Those belong in a Rust dojo facet (theory/DOJO.md's
+;; pty(2) or select(2). Those belong in a Rust dojo facet (a
 ;; `(defperf-lever)`), and until that ships the interactive budget is
 ;; UNMEASURED rather than green.
 ;;
